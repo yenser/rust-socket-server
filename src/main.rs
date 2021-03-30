@@ -1,31 +1,67 @@
 // main.rs
-
-use common::SOCKET_PATH;
-use std::str;
-use std::net::{TcpListener, TcpStream, Shutdown};
-use std::io::Read;
-use std::thread;
-
 mod common;
 
-fn stream_handler(mut stream: TcpStream) {
-  let mut data = [0 as u8; 4]; // using 50 byte buffer
+use common::{SOCKET_PATH, SOCKET_WINDOW_SIZE};
+use std::convert::TryInto;
+use std::io::Read;
+use std::net::{Shutdown, TcpListener, TcpStream};
+use std::{fs, thread};
 
-  let mut response = String::new();
+fn get_u32_from_buf(val: &[u8]) -> [u8; 4] {
+  val.try_into().expect("slice with incorrect length")
+}
+
+fn save_buffer(buf: &Vec<u8>, i: &i32) {
+  fs::create_dir_all("./images/").unwrap();
+  let file_name = format!("./images/buffer{}.jpg", i);
+  fs::write(file_name, &buf).expect("Unable to write file");
+}
+
+fn stream_handler(mut stream: TcpStream) {
+  let mut data = [0 as u8; SOCKET_WINDOW_SIZE]; // using 50 byte buffer
+
+  let mut i = 0;
+
+  stream.read(&mut data).unwrap();
+  let image_size = u32::from_be_bytes(get_u32_from_buf(&data[0..4]));
+  println!("image_size: {}", &image_size);
+
+  let mut buf: Vec<u8> = Vec::new();
 
   while match stream.read(&mut data) {
     Ok(size) => {
       if size != 0 {
-        println!("message size: {}", size);
-        let str_val = str::from_utf8(&data[0..size]).unwrap();
-        
-        response.push_str(&str_val);
+
+        let total_bytes = buf.len() + size; // size of buffer plus data on stream
+
+        if total_bytes as u32 >= image_size {
+          let difference: usize = total_bytes - image_size as usize;
+          let index = size - difference; // get index of where image ends
+
+          if index != 0 {
+            buf.extend_from_slice(&data[0..index]); // add remaining data to buffer
+          }
+
+          save_buffer(&buf, &i);
+          i += 1;
+
+          buf.clear();
+
+          if difference != 0 { // add suffixed data for next image into new file
+            buf.extend_from_slice(&data[index..size]);
+          }
+        } else {
+          buf.extend_from_slice(&data[0..size]);
+        }
+
+
+        // println!("message size: {}", size);
 
         true
       } else {
         println!("Connection closed successfully");
 
-        println!("Phrase: {}", response);
+        // println!("Phrase: {}", response);
         false
       }
     }
@@ -57,7 +93,6 @@ fn main() {
           // connection succeeded
           stream_handler(stream);
         });
-        
       }
       Err(e) => {
         println!("Error: {}", e);
