@@ -1,102 +1,35 @@
-// main.rs
-mod common;
+mod socket;
 
-use common::{SOCKET_PATH, SOCKET_WINDOW_SIZE};
-use std::convert::TryInto;
-use std::io::Read;
-use std::net::{Shutdown, TcpListener, TcpStream};
+use actix_web::{web, App, HttpRequest, HttpServer, Responder, HttpResponse};
 use std::{fs, thread};
 
-fn get_u32_from_buf(val: &[u8]) -> [u8; 4] {
-  val.try_into().expect("slice with incorrect length")
+async fn greet(req: HttpRequest) -> impl Responder {
+    let name = req.match_info().get("name").unwrap_or("World");
+    format!("Hello {}!", &name)
 }
 
-fn save_buffer(buf: &Vec<u8>, i: &i32) {
-  fs::create_dir_all("./images/").unwrap();
-  let file_name = format!("./images/buffer{}.jpg", i);
-  fs::write(file_name, &buf).expect("Unable to write file");
+async fn image(req: HttpRequest) -> HttpResponse {
+
+    let data = fs::read("./images/buffer0.jpg").unwrap();
+    return HttpResponse::Ok()
+        .content_type("image/jpeg")
+        .header("Content-Disposition", "inline")
+        .body(data)
 }
 
-fn stream_handler(mut stream: TcpStream) {
-  let mut data = [0 as u8; SOCKET_WINDOW_SIZE]; // using 50 byte buffer
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    
+    thread::spawn(move || {
+        // connection succeeded
+        socket::start();
+      });
 
-  let mut i = 0;
-
-  stream.read(&mut data).unwrap();
-  let image_size = u32::from_be_bytes(get_u32_from_buf(&data[0..4]));
-  println!("image_size: {}", &image_size);
-
-  let mut buf: Vec<u8> = Vec::new();
-
-  while match stream.read(&mut data) {
-    Ok(size) => {
-      if size != 0 {
-
-        let total_bytes = buf.len() + size; // size of buffer plus data on stream
-
-        if total_bytes as u32 >= image_size {
-          let difference: usize = total_bytes - image_size as usize;
-          let index = size - difference; // get index of where image ends
-
-          if index != 0 {
-            buf.extend_from_slice(&data[0..index]); // add remaining data to buffer
-          }
-
-          save_buffer(&buf, &i);
-          i += 1;
-
-          buf.clear();
-
-          if difference != 0 { // add suffixed data for next image into new file
-            buf.extend_from_slice(&data[index..size]);
-          }
-        } else {
-          buf.extend_from_slice(&data[0..size]);
-        }
-
-
-        // println!("message size: {}", size);
-
-        true
-      } else {
-        println!("Connection closed successfully");
-
-        // println!("Phrase: {}", response);
-        false
-      }
-    }
-    Err(e) => {
-      println!("Error Reading stream: {}", e);
-      stream.shutdown(Shutdown::Both).unwrap();
-      false
-    }
-  } {}
-}
-
-fn main() {
-  let address = SOCKET_PATH;
-
-  let listener = match TcpListener::bind(&address) {
-    Err(_) => panic!("failed to bind socket"),
-    Ok(listener) => listener,
-  };
-
-  println!("Server started on {}, waiting for clients", &address);
-
-  // Iterate over clients, blocks if no client available
-  for stream in listener.incoming() {
-    match stream {
-      Ok(stream) => {
-        println!("New Connection: {}", stream.peer_addr().unwrap());
-
-        thread::spawn(move || {
-          // connection succeeded
-          stream_handler(stream);
-        });
-      }
-      Err(e) => {
-        println!("Error: {}", e);
-      }
-    }
-  }
+    HttpServer::new(|| {
+        App::new()
+            .route("/", web::get().to(image))
+    })
+    .bind(("127.0.0.1", 8080))?
+    .run()
+    .await
 }
