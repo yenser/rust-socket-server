@@ -1,35 +1,43 @@
 mod socket;
 
-use actix_web::{web, App, HttpRequest, HttpServer, Responder, HttpResponse};
-use std::{fs, thread};
+use std::convert::Infallible;
+use std::net::SocketAddr;
+use hyper::service::{make_service_fn, service_fn};
+use hyper::{Body, Request, Response, Server};
+// use std::{fs, thread};
 
-async fn greet(req: HttpRequest) -> impl Responder {
-    let name = req.match_info().get("name").unwrap_or("World");
-    format!("Hello {}!", &name)
+// async fn image(req: HttpRequest) -> HttpResponse {
+//     let data = fs::read("./images/buffer0.jpg").unwrap();
+//     return HttpResponse::Ok()
+//         .content_type("image/jpeg")
+//         .header("Content-Disposition", "inline")
+//         .body(data);
+// }
+
+async fn hello_world(_req: Request<Body>) -> Result<Response<Body>, Infallible> {
+    Ok(Response::new("Hello, World".into()))
 }
 
-async fn image(req: HttpRequest) -> HttpResponse {
+#[tokio::main]
+async fn main() {
+    // thread::spawn(move || {
+    //     // connection succeeded
+    //     socket::start();
+    // });
+    // We'll bind to 127.0.0.1:8080
+    let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
 
-    let data = fs::read("./images/buffer0.jpg").unwrap();
-    return HttpResponse::Ok()
-        .content_type("image/jpeg")
-        .header("Content-Disposition", "inline")
-        .body(data)
-}
+    // A `Service` is needed for every connection, so this
+    // creates one from our `hello_world` function.
+    let make_svc = make_service_fn(|_conn| async {
+        // service_fn converts our function into a `Service`
+        Ok::<_, Infallible>(service_fn(hello_world))
+    });
 
-#[actix_web::main]
-async fn main() -> std::io::Result<()> {
-    
-    thread::spawn(move || {
-        // connection succeeded
-        socket::start();
-      });
+    let server = Server::bind(&addr).serve(make_svc);
 
-    HttpServer::new(|| {
-        App::new()
-            .route("/", web::get().to(image))
-    })
-    .bind(("127.0.0.1", 8080))?
-    .run()
-    .await
+    // Run this server for... forever!
+    if let Err(e) = server.await {
+        eprintln!("server error: {}", e);
+    }
 }

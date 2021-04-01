@@ -7,6 +7,8 @@ use std::io::Read;
 use std::net::{Shutdown, TcpListener, TcpStream};
 use std::{fs, thread};
 
+// pub Stream
+
 fn get_u32_from_buf(val: &[u8]) -> [u8; 4] {
   val.try_into().expect("slice with incorrect length")
 }
