@@ -13,16 +13,14 @@ fn get_u32_from_buf(val: &[u8]) -> [u8; 4] {
   val.try_into().expect("slice with incorrect length")
 }
 
-fn save_buffer(buf: &Vec<u8>, i: &i32) {
-  fs::create_dir_all("./images/").unwrap();
-  let file_name = format!("./images/buffer{}.jpg", i);
+fn save_buffer(buf: &Vec<u8>) {
+  fs::create_dir_all("./videos/").unwrap();
+  let file_name = format!("./videos/buffer.mp4");
   fs::write(file_name, &buf).expect("Unable to write file");
 }
 
 fn stream_handler(mut stream: TcpStream) {
   let mut data = [0 as u8; SOCKET_WINDOW_SIZE]; // using 50 byte buffer
-
-  let mut i = 0;
 
   stream.read(&mut data).unwrap();
   let image_size = u32::from_be_bytes(get_u32_from_buf(&data[0..4]));
@@ -44,8 +42,7 @@ fn stream_handler(mut stream: TcpStream) {
             buf.extend_from_slice(&data[0..index]); // add remaining data to buffer
           }
 
-          save_buffer(&buf, &i);
-          i += 1;
+          save_buffer(&buf);
 
           buf.clear();
 
