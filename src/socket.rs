@@ -16,7 +16,6 @@ fn get_u32_from_buf(val: &[u8]) -> [u8; 4] {
 fn save_buffer(buf: &Vec<u8>) {
   fs::create_dir_all("./images/").unwrap();
   let file_name = format!("./images/image.jpg");
-
   fs::write(file_name, &buf).expect("Unable to write file");
 }
 
