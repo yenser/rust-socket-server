@@ -12,17 +12,15 @@ use std::{fs, thread};
 //         .body(data);
 // }
 
-async fn handle_video(req: Request<Body>) -> Response<Body> {
+async fn handle_video(_req: Request<Body>) -> Response<Body> {
     let image = fs::read("./images/buffer0.jpg").unwrap();
 
-    // let mut resp = Response::new(Body::empty());
     let resp = Response::builder()
         .status(StatusCode::OK)
         .header("Content-Disposition", "inline")
         .header("Content-Length", image.len())
         .body(Body::from(image));
 
-    // *resp.status_mut() = StatusCode::NOT_FOUND;
     return resp.unwrap();
 }
 
