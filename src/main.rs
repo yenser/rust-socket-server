@@ -2,7 +2,9 @@ mod socket;
 
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Method, Request, Response, Server, StatusCode};
+use hyper::body::Bytes;
 use std::{fs, thread};
+use tokio::time::{sleep, Duration};
 
 // async fn image(req: HttpRequest) -> HttpResponse {
 //     let data = fs::read("./images/buffer0.jpg").unwrap();
@@ -13,17 +15,37 @@ use std::{fs, thread};
 // }
 
 async fn handle_video(_req: Request<Body>) -> Response<Body> {
-    let image = fs::read("./images/image.jpg").unwrap();
+    // let image = fs::read("./images/image.jpg").unwrap();
+
+    let (sender, body) = Body::channel();
 
     // let mut resp = Response::new(Body::empty());
 
-    let resp = Response::builder()
-        .status(StatusCode::OK)
-        .header("Content-Type", "multipart/x-mixed-replace; boundary=--frame")
-        // .header("Content-Disposition", "inline")
-        // .header("Content-Length", image.len())
-        .body(Body::from(image));
+    tokio::spawn(async move {
+        let mut sender = sender;
+    
+        loop {
+            let image = fs::read("./images/image.jpg").unwrap();
 
+            let content_length = format!("Content-Length {}\n\n", image.len());
+
+            sender.send_data(Bytes::from("--frame\n")).await.unwrap();
+            sender.send_data(Bytes::from("Content-Type: image/jpeg\n")).await.unwrap();
+            sender.send_data(Bytes::from(content_length)).await.unwrap();
+            sender.send_data(Bytes::from(image)).await.unwrap();
+            // sender.send_data(Bytes::from("\n\n")).await.unwrap();
+
+            sleep(Duration::from_millis(10)).await; //delay
+        }
+    });
+    
+    
+    let resp = Response::builder()
+    .status(StatusCode::OK)
+    .header("Content-Type", "multipart/x-mixed-replace; boundary=--frame")
+    .body(body);
+
+    
     return resp.unwrap();
 }
 
