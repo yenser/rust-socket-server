@@ -35,7 +35,7 @@ async fn handle_video(_req: Request<Body>) -> Response<Body> {
             sender.send_data(Bytes::from(image)).await.unwrap();
             // sender.send_data(Bytes::from("\n\n")).await.unwrap();
 
-            sleep(Duration::from_millis(10)).await; //delay
+            sleep(Duration::from_millis(100)).await; //delay
         }
     });
     
