@@ -14,7 +14,7 @@ use tokio::time::{sleep, Duration};
 //         .body(data);
 // }
 
-async fn handle_video(_req: Request<Body>) -> Response<Body> {
+async fn handle_video(_req: Request<Body>, video_path: String) -> Response<Body> {
     // let image = fs::read("./images/image.jpg").unwrap();
 
     let (sender, body) = Body::channel();
@@ -25,7 +25,8 @@ async fn handle_video(_req: Request<Body>) -> Response<Body> {
         let mut sender = sender;
     
         loop {
-            let image = fs::read("./images/image.jpg").unwrap();
+            let path = format!("./images/{}", video_path);
+            let image = fs::read(path).unwrap();
 
             let content_length = format!("Content-Length {}\n\n", image.len());
 
@@ -51,8 +52,8 @@ async fn handle_video(_req: Request<Body>) -> Response<Body> {
 
 async fn route_handler(req: Request<Body>) -> Result<Response<Body>, hyper::Error> {
     return match (req.method(), req.uri().path()) {
-        (&Method::GET, "/") => Ok(Response::new(Body::from("Hello World"))),
-        (&Method::GET, "/video") => Ok(handle_video(req).await),
+        (&Method::GET, "/") => Ok(Response::new(Body::from("GOOD"))),
+        (&Method::GET, "/videos/carrack") => Ok(handle_video(req, String::from("carrack.jpg")).await),
         // Return the 404 Not Found for other routes.
         _ => {
             let mut not_found = Response::default();

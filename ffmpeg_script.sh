@@ -1,1 +1,0 @@
-sudo ffmpeg -re -f video4linux2 -i /dev/video0 -vcodec libx264 -vprofile baseline -vf scale1280:720 -f flv rtmp://localhost/show/stream

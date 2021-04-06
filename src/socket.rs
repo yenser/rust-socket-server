@@ -5,7 +5,7 @@ use common::{SOCKET_PATH, SOCKET_WINDOW_SIZE};
 use std::convert::TryInto;
 use std::io::Read;
 use std::net::{Shutdown, TcpListener, TcpStream};
-use std::{fs, thread};
+use std::{fs, thread, str};
 
 // pub Stream
 
@@ -13,14 +13,20 @@ fn get_u32_from_buf(val: &[u8]) -> [u8; 4] {
   val.try_into().expect("slice with incorrect length")
 }
 
-fn save_buffer(buf: &Vec<u8>) {
+fn save_buffer(buf: &Vec<u8>, file_name: &str) {
   fs::create_dir_all("./images/").unwrap();
-  let file_name = format!("./images/image.jpg");
-  fs::write(file_name, &buf).expect("Unable to write file");
+  let file_path = format!("./images/{}", file_name);
+  fs::write(file_path, &buf).expect("Unable to write file");
 }
 
 fn stream_handler(mut stream: TcpStream) {
   let mut data = [0 as u8; SOCKET_WINDOW_SIZE]; // using 50 byte buffer
+
+
+  let size = stream.read(&mut data).unwrap();
+  let file_name_slice = &data[0..size];
+  let file_name = String::from_utf8(file_name_slice.to_vec()).unwrap();
+  println!("File name: {}", file_name);
 
   stream.read(&mut data).unwrap();
   let image_size = u32::from_be_bytes(get_u32_from_buf(&data[0..4]));
@@ -42,7 +48,7 @@ fn stream_handler(mut stream: TcpStream) {
             buf.extend_from_slice(&data[0..index]); // add remaining data to buffer
           }
 
-          save_buffer(&buf);
+          save_buffer(&buf, &file_name);
 
           buf.clear();
 
